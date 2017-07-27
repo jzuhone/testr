@@ -6,6 +6,7 @@ from fnmatch import fnmatch
 import sys
 import os
 import shutil
+import mimetypes
 
 import Ska.File
 from Ska.Shell import bash, ShellError, Spawn
@@ -263,12 +264,17 @@ def make_regress_files(regress_files, out_dir=None, regress_dir=None, clean=None
         os.makedirs(regress_dir)
 
     for regress_file in regress_files:
-        with open(os.path.join(out_dir, regress_file), 'r') as fh:
-            lines = fh.readlines()
 
-        if regress_file in clean:
-            for sub_in, sub_out in clean[regress_file]:
-                lines = [re.sub(sub_in, sub_out, x) for x in lines]
+        filetype = mimetypes.guess_type(regress_file)[0]
+        infile = os.path.join(out_dir, regress_file)
+
+        if filetype != "image/png":
+            with open(infile, 'r') as fh:
+                lines = fh.readlines()
+
+            if regress_file in clean:
+                for sub_in, sub_out in clean[regress_file]:
+                    lines = [re.sub(sub_in, sub_out, x) for x in lines]
 
         # Might need to make output directory since regress_file can
         # contain directory prefix.
@@ -277,8 +283,11 @@ def make_regress_files(regress_files, out_dir=None, regress_dir=None, clean=None
         if not os.path.exists(regress_path_dir):
             os.makedirs(regress_path_dir)
 
-        with open(regress_path, 'w') as fh:
-            fh.writelines(lines)
+        if filetype == "image/png":
+            shutil.copy(infile, regress_path)
+        else:
+            with open(regress_path, 'w') as fh:
+                fh.writelines(lines)
 
 
 def check_files(filename, checks, allows=None, out_dir=None):
